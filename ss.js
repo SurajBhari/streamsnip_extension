@@ -33,7 +33,6 @@
         if(!data){
             return;
         }
-        console.log(data);
         var progreess_bar = document.querySelectorAll('.ytp-progress-bar');
         var container = document.querySelector('.ytp-progress-bar-container');
         var ul = document.createElement('ul');
@@ -56,7 +55,6 @@
             start_time = parseInt(start_time);
             end_time = parseInt(end_time);
 
-            console.log(start_time, end_time, total_time);
             var bar = document.createElement('li');
             bar.classList.add('previewbar');
             bar.innerHTML = '&nbsp;';
@@ -80,8 +78,13 @@
         seekBar.addEventListener("mouseleave", () => {
             mouseOnSeekBar = false;
         });
+        var last_mouse_position = null;
         seekBar.addEventListener("mousemove", (e) => {
             const timeInSeconds = ((e.clientX - seekBar.getBoundingClientRect().x) / seekBar.clientWidth);
+            if(last_mouse_position == e.clientX){
+                return;
+            }
+            last_mouse_position = e.clientX;
             // timeInSeconds is a value between 0 and 1 then get the time 
             var time = timeInSeconds * total_time;
             time = parseInt(time);
