@@ -9,6 +9,43 @@
     const timeToRightPercentage = (time, total_time) => {
         return 100 - (time / total_time) * 100;
     }
+
+    function update_duration(data){
+        var current_time = document.getElementsByClassName("ytp-time-current")[0].textContent;  
+        current_time = current_time.split(':');
+        var seconds = 0;
+        if(current_time.length == 2){
+            seconds = parseInt(current_time[0]) * 60 + parseInt(current_time[1]);
+        }
+        else if(current_time.length == 3){
+            seconds = parseInt(current_time[0]) * 3600 + parseInt(current_time[1]) * 60 + parseInt(current_time[2]);
+        }
+        for(let i=0; i<data.length; i++){
+            var clip = data[i];
+            var start_time = clip.clip_time
+            var end_time = clip.clip_time - clip.delay;
+            if(start_time < end_time){
+                start_time, end_time = end_time, start_time;
+            }
+            if(seconds >= start_time && seconds <= end_time){
+                var message = clip.message;
+                if (document.getElementsByClassName("ytp-time-display")[0].innerHTML.includes(message)){
+                    console.log('Message already added');
+                    return; // already added
+                }
+                var span = document.createElement('span');
+                span.id = 'clip_message';
+                span.innerHTML = "   " +message;
+                document.getElementsByClassName("ytp-time-duration")[0].parentElement.append(span);
+                return; // there can be only one message at a time
+            }
+            
+        }
+        var clip_message = document.getElementById('clip_message');
+        if(clip_message){
+            clip_message.remove();
+        }
+    }
     async function run(){
         console.log('Streamsnip Running');
         var videoId = null;
@@ -29,10 +66,11 @@
         console.log('Video ID:', videoId);
         let qurl = 'https://streamsnip.com/extension/clips/' + videoId;
         let response = await fetch(qurl);
-        let data = await response.json();
+        var data = await response.json();
         if(!data){
             return;
         }
+        setInterval(update_duration, 1000, data);
         var progreess_bar = document.querySelectorAll('.ytp-progress-bar');
         var container = document.querySelector('.ytp-progress-bar-container');
         var ul = document.createElement('ul');
@@ -111,10 +149,9 @@
                     preview.style.pointerEvents = 'none';
                     seekBar.appendChild(preview);
                     */
-                    tooltip_text.textContent += ' ' + message;
+                    tooltip_text.textContent += '\n' + message;
                 }
             }
-            
         });
     };
 
