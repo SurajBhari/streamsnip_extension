@@ -35,7 +35,7 @@
                 }
                 var span = document.createElement('span');
                 span.id = 'clip_message';
-                span.innerHTML = "   " +message;
+                span.innerHTML = " •  " +message;
                 document.getElementsByClassName("ytp-time-duration")[0].parentElement.append(span);
                 return; // there can be only one message at a time
             }
