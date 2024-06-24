@@ -49,6 +49,7 @@
     async function run(){
         console.log('Streamsnip Running');
         var videoId = null;
+        var last_video_id;
         // get current url
         let url = window.location.href;
         if(url.includes("watch")){
@@ -60,7 +61,11 @@
         else{
             // not on a watch page
             last_video_id = null;
-            await delay(5000);
+            console.log("Streamsnip: not on a watch page.")
+            while(window.location.href == url){
+                await delay(5000);
+            }
+            run();
             return;
         }
         console.log('Video ID:', videoId);
