@@ -136,6 +136,11 @@
             return;
         }
         console.log('Video ID:', videoId);
+        preview_bar = document.getElementById('previewbar');
+        if (preview_bar){
+            console.log('Removing preview bar');
+            preview_bar.remove();
+        }
         qurl = 'https://streamsnip.com/extension/clips/' + videoId;
         response = await fetch(qurl);
         data = await response.json();
