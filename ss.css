@@ -1,4 +1,4 @@
-#previewbar {
+#sspreviewbar {
     position: absolute;
     width: 100%;
     pointer-events: none;
@@ -11,7 +11,7 @@
     transition: transform 0.1s cubic-bezier(0, 0, 0.2, 1) 0s;
 }
 
-.previewbar {
+.sspreviewbar {
     display: inline-block;
     height: 100%;
     min-width: 1px;

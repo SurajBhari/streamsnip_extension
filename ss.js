@@ -136,7 +136,7 @@
             return;
         }
         console.log('Video ID:', videoId);
-        preview_bar = document.getElementById('previewbar');
+        preview_bar = document.getElementById('sspreviewbar');
         if (preview_bar){
             console.log('Removing preview bar');
             preview_bar.remove();
@@ -155,8 +155,7 @@
         if(tooltip_text.length > 0){
             tooltip_text = tooltip_text[0];
         }
-        ul.id = 'previewbar';
-        ul.classList.add('previewbarstyle');
+        ul.id = 'sspreviewbar';
         total_time = parseInt(progreess_bar[0].getAttribute('aria-valuemax'));
         lookuptable = []; // star_time, end_time, message
         for(let i=0; i<data.length; i++){
@@ -171,7 +170,7 @@
             end_time = parseInt(end_time);
 
             bar = document.createElement('li');
-            bar.classList.add('previewbar');
+            bar.classList.add('sspreviewbar');
             bar.innerHTML = '&nbsp;';
             bar.style.position = "absolute";
             bar.style.left = timeToPercentage(start_time, total_time) + '%';
@@ -200,8 +199,8 @@
             await delay(5000);
         }
         seekBar.removeEventListener("mousemove", handlehower);
-        // remove the ul element of id previewbar
-        preview_bar = document.getElementById('previewbar');
+        // remove the ul element of id sspreviewbar
+        preview_bar = document.getElementById('sspreviewbar');
         if (preview_bar){
             console.log('Removing preview bar');
             preview_bar.remove();
