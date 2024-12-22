@@ -125,6 +125,12 @@
             videoId = videoId.split('?')[1].split('v=')[1];
             videoId = videoId.split('&')[0];
         }
+        else if(url.includes("embed")){
+            // https://www.youtube.com/embed/xk7tr39tx1E?start=15202&autoplay=1
+            let urlParts = url.split('/');
+            videoId = urlParts[urlParts.length-1];
+            videoId = videoId.split('?')[0];
+        }
         else{
             // not on a watch page
             last_video_id = null;
