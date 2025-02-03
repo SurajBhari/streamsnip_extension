@@ -113,6 +113,82 @@
         }
     }
 
+    function create_clip_box(){
+        var middle_row = document.getElementById('middle-row');
+        middle_row.innerHTML = `
+            <div class="clip_box">
+                <button id="lt_button">&lt;</button>
+                <span id="current_clip_id"></span> | <span id="clip_box_author"></span> - <span id="clip_box_message"></span> | <span id="clip_box_time"></span> | <span id="clip_box_delay"></span>
+                <button id="gt_button">&gt;</button>
+            </div>
+        `;
+
+        document.head.insertAdjacentHTML(
+            "beforeend",
+            `
+            <style>
+                .clip_box { 
+                    display: flex; 
+                    align-items: center; 
+                    justify-content: center; 
+                    gap: 10px; 
+                    border: 1px solid #ccc; 
+                    padding: 10px; 
+                    width: 100%; 
+                    text-align: center; 
+                } 
+
+                button { 
+                    cursor: pointer; 
+                }
+            </style>
+            `
+        );
+
+    }
+    function get_to_clip(reverse = false) {
+        console.log('Getting to clip');
+    
+        if (!data || data.length === 0) {
+            console.warn('No clip data available.');
+            return;
+        }
+    
+        let currentClipIdElem = document.getElementById('current_clip_id');
+        if (!currentClipIdElem) {
+            console.warn('Element with ID "current_clip_id" not found.');
+            return;
+        }
+    
+        let copyData = reverse ? data.slice().reverse() : data;
+        let currentClipId = currentClipIdElem.innerText.trim();
+        let currentClip = copyData[0]; // Default to the first clip
+    
+        if (currentClipId) {
+            for (let i = 0; i < copyData.length; i++) {
+                if (copyData[i].id == currentClipId) { // Loose equality allows string/number match
+                    currentClip = (i === copyData.length - 1) ? copyData[0] : copyData[i + 1]; // Loop back to first if at the end
+                    break;
+                }
+            }
+        }
+    
+        currentClipIdElem.innerText = currentClip.id;
+        document.getElementById('clip_box_author').innerText = currentClip.author.name;
+        document.getElementById('clip_box_message').innerText = currentClip.message;
+        console.log('Clip message:', currentClip.message);
+        console.log(currentClip)
+        document.getElementById('clip_box_time').innerText = currentClip.clip_time;
+        if(currentClip.delay < 0){
+            document.getElementById('clip_box_delay').innerText = "+" + currentClip.delay*-1 + 's';
+        }
+        else{
+            document.getElementById('clip_box_delay').innerText = currentClip.delay + 's';
+        }
+
+        console.log('Switched to clip:', currentClip.id);
+    }
+    
     async function run(){
         console.log('Streamsnip Running');
         videoId = null;
@@ -153,6 +229,7 @@
         if(!data){
             return;
         }
+        create_clip_box(); // create a box to show the clip message 
         setInterval(update_duration, 1000, data);
         progreess_bar = document.querySelectorAll('.ytp-progress-bar');
         container = document.querySelector('.ytp-progress-bar-container');
@@ -200,6 +277,16 @@
         });
         last_mouse_position = null;
         seekBar.addEventListener("mousemove", handlehower);   
+        console.log("adding event listeners");
+        var lt = document.getElementById('lt_button');
+        var gt = document.getElementById('gt_button');
+        lt.addEventListener('click', () => {
+            get_to_clip(true);
+        });
+        gt.addEventListener('click', () => {
+            get_to_clip(false);
+        });
+        // wait for page to load and then wait 1 second and then call get_to_clip
         // add a while true loop to rerun the function on page change / vide change . and remove all the eventlistners
         while(window.location.href == url){
             await delay(5000);
