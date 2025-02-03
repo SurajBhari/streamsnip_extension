@@ -66,6 +66,7 @@
                 span.id = 'clip_message';
                 span.innerHTML = " •  " +message;
                 document.getElementsByClassName("ytp-time-duration")[0].parentElement.append(span);
+                update_box_data(clip);
                 return; // there can be only one message at a time1
             }
             
@@ -146,6 +147,21 @@
         );
 
     }
+    function jump(time){
+        console.log("Jumping to: ", time);
+        document.querySelector(".html5-video-container").firstChild.currentTime = parseInt(time);
+    }
+    function update_box_data(clip){
+        document.getElementById('clip_box_author').innerText = clip.author.name;
+        document.getElementById('clip_box_message').innerText = clip.message;
+        document.getElementById('clip_box_time').innerText = clip.hms;
+        if(clip.delay < 0){
+            document.getElementById('clip_box_delay').innerText = "+" + clip.delay*-1 + 's';
+        }
+        else{
+            document.getElementById('clip_box_delay').innerText = clip.delay + 's';
+        }
+    }
     function get_to_clip(reverse = false) {
         console.log('Getting to clip');
     
@@ -174,18 +190,8 @@
         }
     
         currentClipIdElem.innerText = currentClip.id;
-        document.getElementById('clip_box_author').innerText = currentClip.author.name;
-        document.getElementById('clip_box_message').innerText = currentClip.message;
-        console.log('Clip message:', currentClip.message);
-        console.log(currentClip)
-        document.getElementById('clip_box_time').innerText = currentClip.clip_time;
-        if(currentClip.delay < 0){
-            document.getElementById('clip_box_delay').innerText = "+" + currentClip.delay*-1 + 's';
-        }
-        else{
-            document.getElementById('clip_box_delay').innerText = currentClip.delay + 's';
-        }
-
+        update_box_data(currentClip);
+        jump(currentClip.clip_time);
         console.log('Switched to clip:', currentClip.id);
     }
     
