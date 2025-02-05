@@ -133,14 +133,35 @@
                     align-items: center; 
                     justify-content: center; 
                     gap: 10px; 
-                    border: 1px solid #ccc; 
                     padding: 10px; 
-                    width: 100%; 
+                    width: auto; 
                     text-align: center; 
+                    border-radius: 12px;
+                    font-size: 14px;
+                    background-color: rgba(255,255,255,0.1);
+                    color: var(--yt-formatted-string-bold-color,inherit);
                 } 
 
                 button { 
-                    cursor: pointer; 
+                    background: none;
+                    color: inherit;
+                    border: none;
+                    padding: 0;
+                    font: inherit;
+                    cursor: pointer;
+                    outline: inherit;
+                }
+                #lt_button {
+                    position: absolute;
+                    left: 20px;
+                }
+                #gt_button {
+                    position: absolute;
+                    right: 20px;
+                }
+
+                #current_clip_id {
+                    color: var(--yt-endpoint-color, var(--yt-spec-call-to-action));
                 }
             </style>
             `
