@@ -253,7 +253,7 @@
         qurl = 'https://streamsnip.com/extension/clips/' + videoId;
         response = await fetch(qurl);
         data = await response.json();
-        if(!data){
+        if(!data.length){ // WHY JS WHY. WHY CAN"T I JUST DO !data 
             return;
         }
         create_clip_box(); // create a box to show the clip message 
