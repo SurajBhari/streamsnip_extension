@@ -333,6 +333,7 @@
             console.log('Removing preview bar');
             preview_bar.remove();
         }
+        remove_clip_box();
         run();
     };
 
