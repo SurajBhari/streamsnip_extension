@@ -113,6 +113,12 @@
             }
         }
     }
+    function remove_clip_box(){
+        var clip_box = document.getElementById('clip_box');
+        if(clip_box){
+            clip_box.remove();
+        }
+    }
 
     function create_clip_box(){
         var middle_row = document.getElementById('middle-row');
@@ -254,6 +260,8 @@
         response = await fetch(qurl);
         data = await response.json();
         if(!data.length){ // WHY JS WHY. WHY CAN"T I JUST DO !data 
+            console.log("No clips found");
+            remove_clip_box();
             return;
         }
         create_clip_box(); // create a box to show the clip message 
