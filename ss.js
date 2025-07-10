@@ -29,6 +29,30 @@
     var span;
     var current_time;
     var seconds;
+
+
+    const originalPushState = history.pushState;
+    const originalReplaceState = history.replaceState;
+
+    function onUrlChange() {
+        console.log('Detected URL change');
+        run(); // your main function
+    }
+
+    history.pushState = function (...args) {
+        originalPushState.apply(history, args);
+        onUrlChange();
+    };
+
+    history.replaceState = function (...args) {
+        originalReplaceState.apply(history, args);
+        onUrlChange();
+    };
+
+    window.addEventListener('popstate', () => {
+        onUrlChange();
+    });
+
     const delay = (delayInms) => {
         return new Promise(resolve => setTimeout(resolve, delayInms));
     };
@@ -62,7 +86,10 @@
                     console.log('Message already added');
                     return; // already added
                 }
-                span = document.createElement('span');
+                span = document.getElementById('clip_message');
+                if(!span){
+                    span = document.createElement('span');
+                }
                 span.id = 'clip_message';
                 span.innerHTML = " •  " +message;
                 document.getElementsByClassName("ytp-time-duration")[0].parentElement.append(span);
@@ -122,14 +149,16 @@
 
     function create_clip_box(){
         var middle_row = document.getElementById('middle-row');
-        middle_row.innerHTML = `
+        if(middle_row){
+            middle_row.innerHTML = `
             <div class="clip_box">
                 <button id="lt_button">&lt;</button>
-                <span id="current_clip_id"></span> | <span id="clip_box_author"></span> - <span id="clip_box_message"></span> | <span id="clip_box_time"></span> | <span id="clip_box_delay"></span>
+                <span id="current_clip_id"></span> <span id="clip_box_content"></span>
                 <button id="gt_button">&gt;</button>
             </div>
         `;
-
+        }
+        
         document.head.insertAdjacentHTML(
             "beforeend",
             `
@@ -179,14 +208,14 @@
         document.querySelector(".html5-video-container").firstChild.currentTime = parseInt(time);
     }
     function update_box_data(clip){
-        document.getElementById('clip_box_author').innerText = clip.author.name;
-        document.getElementById('clip_box_message').innerText = clip.message;
-        document.getElementById('clip_box_time').innerText = clip.hms;
-        if(clip.delay < 0){
-            document.getElementById('clip_box_delay').innerText = "+" + clip.delay*-1 + 's';
+        var clip_box_content = document.getElementById('clip_box_content');
+        
+        clip_box_content.innerHTML = `| ${clip.author.name} - ${clip.message} | ${clip.hms} | `;
+        if(clip.delay < 0) {
+            clip_box_content.innerHTML += `Delay: ${Math.abs(clip.delay)}s`;   
         }
         else{
-            document.getElementById('clip_box_delay').innerText = clip.delay + 's';
+            clip_box_content.innerHTML += `Ahead: ${clip.delay}s`;   
         }
     }
     function get_to_clip(reverse = false) {
