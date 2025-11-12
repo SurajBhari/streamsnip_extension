@@ -30,29 +30,6 @@
     var current_time;
     var seconds;
 
-
-    const originalPushState = history.pushState;
-    const originalReplaceState = history.replaceState;
-
-    function onUrlChange() {
-        console.log('Detected URL change');
-        run(); // your main function
-    }
-
-    history.pushState = function (...args) {
-        originalPushState.apply(history, args);
-        onUrlChange();
-    };
-
-    history.replaceState = function (...args) {
-        originalReplaceState.apply(history, args);
-        onUrlChange();
-    };
-
-    window.addEventListener('popstate', () => {
-        onUrlChange();
-    });
-
     const delay = (delayInms) => {
         return new Promise(resolve => setTimeout(resolve, delayInms));
     };
@@ -63,7 +40,7 @@
         return 100 - (time / total_time) * 100;
     }
 
-    function update_duration(data){
+    function get_current_seconds(){
         current_time = document.getElementsByClassName("ytp-time-current")[0].textContent;  
         current_time = current_time.split(':');
         seconds = 0;
@@ -71,8 +48,15 @@
             seconds = parseInt(current_time[0]) * 60 + parseInt(current_time[1]);
         }
         else if(current_time.length == 3){
-            seconds = parseInt(current_time[0]) * 3600 + parseInt(current_time[1]) * 60 + parseInt(current_time[2]);
+            seconds = parseInt(current_time[0]) * 3600 + parseInt(current_time[1]) * 60 + parseInt(current_time[2]); 
         }
+        seconds = seconds+1; // add 1 second to account for delay
+        return seconds;
+    }
+
+    function update_duration(data){
+        seconds = get_current_seconds();
+        
         for(let i=0; i<data.length; i++){
             var clip = data[i];
             var start_time = clip.clip_time
@@ -82,6 +66,7 @@
             }
             if(seconds >= start_time && seconds <= end_time){
                 var message = clip.message;
+                update_box_data(clip);
                 if (document.getElementsByClassName("ytp-time-display")[0].innerHTML.includes(message)){
                     console.log('Message already added');
                     return; // already added
@@ -93,7 +78,6 @@
                 span.id = 'clip_message';
                 span.innerHTML = " •  " +message;
                 document.getElementsByClassName("ytp-time-duration")[0].parentElement.append(span);
-                update_box_data(clip);
                 return; // there can be only one message at a time1
             }
             
@@ -148,12 +132,15 @@
     }
 
     function create_clip_box(){
+        if(document.getElementById('clip_box')){
+            return;
+        }// already exists
         var middle_row = document.getElementById('middle-row');
         if(middle_row){
             middle_row.innerHTML = `
-            <div class="clip_box">
+            <div id="clip_box">
                 <button id="lt_button">&lt;</button>
-                <span id="current_clip_id"></span> <span id="clip_box_content"></span>
+                <span id="current_clip_id"></span> | <span id="clip_box_author_name"></span> - <span id="clip_box_message"></span> | <span id="clip_box_hms"></span> | <span id="clip_box_delay"></span>
                 <button id="gt_button">&gt;</button>
             </div>
         `;
@@ -163,7 +150,7 @@
             "beforeend",
             `
             <style>
-                .clip_box { 
+                #clip_box { 
                     display: flex; 
                     align-items: center; 
                     justify-content: center; 
@@ -205,49 +192,76 @@
     }
     function jump(time){
         console.log("Jumping to: ", time);
+        if(!time){
+            return;
+        }
         document.querySelector(".html5-video-container").firstChild.currentTime = parseInt(time);
     }
     function update_box_data(clip){
-        var clip_box_content = document.getElementById('clip_box_content');
+        // <span id="current_clip_id"></span> | <span id="clip_box_author_name"></span> - <span id="clip_box_message"></span> | <span id="clip_box_hms"></span> | <span id="clip_box_delay"></span>
+        var current_clip_id = document.getElementById('current_clip_id');
+        var clip_box_author_name = document.getElementById('clip_box_author_name');
+        var clip_box_message = document.getElementById('clip_box_message');
+        var clip_box_hms = document.getElementById('clip_box_hms');
+        var clip_box_delay = document.getElementById('clip_box_delay');
+        if(!current_clip_id){
+            return;
+        }
+        current_clip_id.innerText = clip.id;
+        clip_box_author_name.innerText = clip.author.name;
+        clip_box_message.innerText = clip.message;
+        clip_box_hms.innerText = clip.hms;
         
-        clip_box_content.innerHTML = `| ${clip.author.name} - ${clip.message} | ${clip.hms} | `;
         if(clip.delay < 0) {
-            clip_box_content.innerHTML += `Delay: ${Math.abs(clip.delay)}s`;   
+            clip_box_delay.innerText = `Delay: ${Math.abs(clip.delay)}s`;   
         }
         else{
-            clip_box_content.innerHTML += `Ahead: ${clip.delay}s`;   
+            clip_box_delay.innerText = `Ahead: ${clip.delay}s`;   
         }
     }
     function get_to_clip(reverse = false) {
-        console.log('Getting to clip');
-    
-        if (!data || data.length === 0) {
-            console.warn('No clip data available.');
-            return;
-        }
-    
-        let currentClipIdElem = document.getElementById('current_clip_id');
-        if (!currentClipIdElem) {
-            console.warn('Element with ID "current_clip_id" not found.');
-            return;
-        }
-    
-        let copyData = reverse ? data.slice().reverse() : data;
-        let currentClipId = currentClipIdElem.innerText.trim();
-        let currentClip = copyData[0]; // Default to the first clip
-    
-        if (currentClipId) {
-            for (let i = 0; i < copyData.length; i++) {
-                if (copyData[i].id == currentClipId) { // Loose equality allows string/number match
-                    currentClip = (i === copyData.length - 1) ? copyData[0] : copyData[i + 1]; // Loop back to first if at the end
-                    break;
+        seconds = get_current_seconds();
+        // find the closest clip in lookuptable
+        var currentClip = null;
+        for(let i=0; i<lookuptable.length; i++){
+            var clip = lookuptable[i];
+            if(reverse){
+                if(clip.end_time < seconds){
+                    if(!currentClip || clip.end_time > currentClip.end_time){
+                        currentClip = clip;
+                    }
                 }
             }
+            else{
+                if(clip.start_time > seconds){
+                    if(!currentClip || clip.start_time < currentClip.start_time){
+                        currentClip = clip;
+                    }
+                }
+            }   
         }
-    
-        currentClipIdElem.innerText = currentClip.id;
-        update_box_data(currentClip);
+        if(!currentClip){
+            console.log("No more clips in this direction");
+            if(reverse){
+                // jump to end
+                currentClip = lookuptable[lookuptable.length - 1];
+
+            }
+            else{
+                // jump to start
+                currentClip = lookuptable[0];
+            }
+        }
+        // now get the actual clip data from data
+        for(let i=0; i<data.length; i++){
+            if(data[i].id == currentClip.id){
+                currentClip = data[i];
+                break;
+            }
+        }
+        
         jump(currentClip.clip_time);
+        update_box_data(currentClip);
         console.log('Switched to clip:', currentClip.id);
     }
     
@@ -273,10 +287,6 @@
             // not on a watch page
             last_video_id = null;
             console.log("Streamsnip: not on a watch page.")
-            while(window.location.href == url){
-                await delay(5000);
-            }
-            run();
             return;
         }
         console.log('Video ID:', videoId);
@@ -293,6 +303,18 @@
             remove_clip_box();
             return;
         }
+        // iterate over data and if any clip.id are repeated then merge them by adding author names and messages
+        for(let i=0; i<data.length; i++){
+            for(let j=i+1; j<data.length; j++){
+                if(data[i].id == data[j].id){
+                    data[i].author.name += `, ${data[j].author.name}`;
+                    data[i].message += ` AND ${data[j].message}`;
+                    data.splice(j, 1);
+                    j--;
+                    console.log("Merged duplicate clip id:", data[i].id);
+                }
+            }
+        }
         create_clip_box(); // create a box to show the clip message 
         setInterval(update_duration, 1000, data);
         progreess_bar = document.querySelectorAll('.ytp-progress-bar');
@@ -304,7 +326,7 @@
         }
         ul.id = 'sspreviewbar';
         total_time = parseInt(progreess_bar[0].getAttribute('aria-valuemax'));
-        lookuptable = []; // star_time, end_time, message
+        lookuptable = []; // star_time, end_time, message, id
         for(let i=0; i<data.length; i++){
             clip = data[i];
             start_time = clip.clip_time
@@ -323,7 +345,7 @@
             bar.style.left = timeToPercentage(start_time, total_time) + '%';
             bar.style.right = timeToRightPercentage(end_time, total_time) + '%';
             ul.appendChild(bar);
-            lookuptable.push({'start_time': start_time, 'end_time': end_time, 'message': clip.message}); 
+            lookuptable.push({'start_time': start_time, 'end_time': end_time, 'message': clip.message, 'id': clip.id}); 
         }
         container.appendChild(ul);
         seekBar = document.querySelector(".ytp-progress-bar-container");
@@ -350,21 +372,15 @@
         gt.addEventListener('click', () => {
             get_to_clip(false);
         });
-        // wait for page to load and then wait 1 second and then call get_to_clip
-        // add a while true loop to rerun the function on page change / vide change . and remove all the eventlistners
-        while(window.location.href == url){
-            await delay(5000);
-        }
-        seekBar.removeEventListener("mousemove", handlehower);
-        // remove the ul element of id sspreviewbar
-        preview_bar = document.getElementById('sspreviewbar');
-        if (preview_bar){
-            console.log('Removing preview bar');
-            preview_bar.remove();
-        }
-        remove_clip_box();
-        run();
     };
+    let lastUrl = location.href;
+    setInterval(() => {
+    if (location.href !== lastUrl) {
+        console.log('URL changed to ' + location.href);
+        lastUrl = location.href;
+        run();
+    }
+    }, 500);
 
     run();
 })();
