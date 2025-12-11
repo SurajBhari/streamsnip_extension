@@ -3,7 +3,7 @@
 
   "manifest_version": 3,
   "name": "Streamsnip ",
-  "version": "2.0",
+  "version": "2.1",
   "description": "Shows clips from the stream on scrubber.",
   "permissions": [
   ],
