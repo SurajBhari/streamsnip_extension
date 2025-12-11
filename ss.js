@@ -120,7 +120,16 @@
                 preview.style.pointerEvents = 'none';
                 seekBar.appendChild(preview);
                 */
-                tooltip_text.textContent += '\n' + message;
+                if(tooltip_text){
+                    if(tooltip_text.innerHTML.includes(message)){
+                        return; // already set
+                    }
+                    else{
+                        tooltip_text.innerHTML = message;
+                        return;
+
+                    }
+                }
             }
         }
     }
@@ -320,7 +329,7 @@
         progreess_bar = document.querySelectorAll('.ytp-progress-bar');
         container = document.querySelector('.ytp-progress-bar-container');
         ul = document.createElement('ul');
-        tooltip_text = document.querySelectorAll(".ytp-tooltip-text");
+        tooltip_text = document.querySelectorAll(".ytp-tooltip-progress-bar-pill-title");
         if(tooltip_text.length > 0){
             tooltip_text = tooltip_text[0];
         }
