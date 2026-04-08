@@ -2,9 +2,6 @@
     'use strict';
     var videoId;
     var last_video_id;
-    var url;
-    var qurl;
-    var response;
     var data;
     var progreess_bar;
     var container;
@@ -19,377 +16,481 @@
     var timeInSeconds;
     var time;
     var message;
-    var preview;
-    var preview_bar;
-    var clip;
-    var start_time;
-    var end_time;
-    var i;
     var clip_message;
     var span;
     var current_time;
     var seconds;
 
-    const delay = (delayInms) => {
-        return new Promise(resolve => setTimeout(resolve, delayInms));
-    };
-    const timeToPercentage = (time, total_time) => {
-        return (time / total_time) * 100;
-    }
-    const timeToRightPercentage = (time, total_time) => {
-        return 100 - (time / total_time) * 100;
+    const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+    const timeToPercentage = (time, total_time) => (time / total_time) * 100;
+    const timeToRightPercentage = (time, total_time) => 100 - (time / total_time) * 100;
+
+    function waitForElement(selector, timeout = 10000) {
+        return new Promise((resolve, reject) => {
+            const el = document.querySelector(selector);
+            if (el) return resolve(el);
+            const observer = new MutationObserver(() => {
+                const el = document.querySelector(selector);
+                if (el) {
+                    observer.disconnect();
+                    resolve(el);
+                }
+            });
+            observer.observe(document.body, { childList: true, subtree: true });
+            setTimeout(() => {
+                observer.disconnect();
+                reject(new Error(`Timeout waiting for ${selector}`));
+            }, timeout);
+        });
     }
 
-    function get_current_seconds(){
-        current_time = document.getElementsByClassName("ytp-time-current")[0].textContent;  
-        current_time = current_time.split(':');
-        seconds = 0;
-        if(current_time.length == 2){
-            seconds = parseInt(current_time[0]) * 60 + parseInt(current_time[1]);
-        }
-        else if(current_time.length == 3){
-            seconds = parseInt(current_time[0]) * 3600 + parseInt(current_time[1]) * 60 + parseInt(current_time[2]); 
-        }
-        seconds = seconds+1; // add 1 second to account for delay
-        return seconds;
-    }
-
-    function update_duration(data){
-        seconds = get_current_seconds();
+    function get_current_seconds() {
+        const timeDisplay = document.querySelector(".ytp-time-current");
+        if (!timeDisplay) return 0;
         
-        for(let i=0; i<data.length; i++){
-            var clip = data[i];
-            var start_time = clip.clip_time
-            var end_time = clip.clip_time - clip.delay;
-            if(start_time < end_time){
-                start_time, end_time = end_time, start_time;
-            }
-            if(seconds >= start_time && seconds <= end_time){
-                var message = clip.message;
+        const parts = timeDisplay.textContent.split(':').map(Number);
+        let secs = 0;
+        if (parts.length === 1) {
+            secs = parts[0];
+        } else if (parts.length === 2) {
+            secs = parts[0] * 60 + parts[1];
+        } else if (parts.length === 3) {
+            secs = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        }
+        return secs;
+    }
+
+    function update_duration(data) {
+        const seconds = get_current_seconds() + 1; // +1 to account for polling delay
+        
+        for (let i = 0; i < data.length; i++) {
+            const clip = data[i];
+            const t1 = parseInt(clip.clip_time);
+            const t2 = parseInt(clip.clip_time) - clip.delay;
+            const start_time = Math.min(t1, t2);
+            const end_time = Math.max(t1, t2);
+
+            if (seconds >= start_time && seconds <= end_time) {
+                const message = clip.message;
                 update_box_data(clip);
-                if (document.getElementsByClassName("ytp-time-display")[0].innerHTML.includes(message)){
-                    console.log('Message already added');
-                    return; // already added
-                }
-                span = document.getElementById('clip_message');
-                if(!span){
+                
+                const timeDisplay = document.querySelector(".ytp-time-display");
+                if (timeDisplay && timeDisplay.innerHTML.includes(message)) return;
+
+                let span = document.getElementById('clip_message');
+                if (!span) {
                     span = document.createElement('span');
+                    span.id = 'clip_message';
+                    const durationParent = document.querySelector(".ytp-time-duration")?.parentElement;
+                    if (durationParent) durationParent.append(span);
                 }
-                span.id = 'clip_message';
-                span.innerHTML = " •  " +message;
-                document.getElementsByClassName("ytp-time-duration")[0].parentElement.append(span);
-                return; // there can be only one message at a time1
+                span.innerHTML = " • " + message;
+                return;
             }
-            
         }
-        clip_message = document.getElementById('clip_message');
-        if(clip_message){
-            clip_message.remove();
-        }
+        
+        const clip_message = document.getElementById('clip_message');
+        if (clip_message) clip_message.remove();
     }
     
-    function handlehower(e){
-        timeInSeconds = ((e.clientX - seekBar.getBoundingClientRect().x) / seekBar.clientWidth);
-        if(last_mouse_position == e.clientX){
-            return;
-        }
+    function handlehover(e) {
+        if (!seekBar || !total_time || !lookuptable) return;
+        
+        const rect = seekBar.getBoundingClientRect();
+        const hoveredX = e.clientX - rect.x;
+        const timeInSeconds = hoveredX / rect.width;
+        
+        if (last_mouse_position === e.clientX) return;
         last_mouse_position = e.clientX;
-        // timeInSeconds is a value between 0 and 1 then get the time 
-        time = timeInSeconds * total_time;
-        time = parseInt(time);
-        for(let i=0; i<lookuptable.length; i++){
-            if(time >= lookuptable[i].start_time && time <= lookuptable[i].end_time){
-                message = lookuptable[i].message;
-                /*
-                var preview = document.querySelector('.preview');
-                if(preview){
-                    preview.remove();
-                }
-                preview = document.createElement('div');
-                preview.classList.add('preview');
-                preview.innerHTML = message;
-                preview.style.position = "absolute";
-                preview.style.top = '0';
-                preview.style.left = e.clientX + 'px';
-                preview.style.backgroundColor = 'black';
-                preview.style.color = 'white';
-                preview.style.padding = '5px';
-                preview.style.borderRadius = '5px';
-                preview.style.zIndex = '1000';
-                preview.style.transform = 'translate(-50%, -100%)';
-                preview.style.pointerEvents = 'none';
-                seekBar.appendChild(preview);
-                */
-                if(tooltip_text){
-                    if(tooltip_text.innerHTML.includes(message)){
-                        return; // already set
-                    }
-                    else{
+        
+        const hoverTime = parseInt(timeInSeconds * total_time);
+        
+        for (let i = 0; i < lookuptable.length; i++) {
+            if (hoverTime >= lookuptable[i].start_time && hoverTime <= lookuptable[i].end_time) {
+                const message = lookuptable[i].message;
+                if (tooltip_text) {
+                    if (!tooltip_text.innerHTML.includes(message)) {
                         tooltip_text.innerHTML = message;
-                        return;
-
                     }
+                    return;
                 }
             }
         }
     }
-    function remove_clip_box(){
-        var clip_box = document.getElementById('clip_box');
-        if(clip_box){
-            clip_box.remove();
-        }
+
+    function remove_clip_box() {
+        const clip_box = document.getElementById('clip_box_container');
+        if (clip_box) clip_box.remove();
     }
 
-    function create_clip_box(){
-        if(document.getElementById('clip_box')){
-            return;
-        }// already exists
-        var middle_row = document.getElementById('middle-row');
-        if(middle_row){
-            middle_row.innerHTML = `
+    function create_clip_box() {
+        if (document.getElementById('clip_box_container')) return;
+
+        const middle_row = document.getElementById('middle-row');
+        if (!middle_row) return;
+
+        const container = document.createElement('div');
+        container.id = 'clip_box_container';
+        container.innerHTML = `
             <div id="clip_box">
-                <button id="lt_button">&lt;</button>
-                <span id="current_clip_id"></span> | <span id="clip_box_author_name"></span> - <span id="clip_box_message"></span> | <span id="clip_box_hms"></span> | <span id="clip_box_delay"></span>
-                <button id="gt_button">&gt;</button>
+                <img src="https://streamsnip.com/static/logo.svg" id="ss_logo_img" alt="StreamSnip Logo">
+                <button id="lt_button" title="Previous Clip">
+                    <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"></path></svg>
+                </button>
+                <div class="clip_content">
+                    <div class="clip_header">
+                        <span id="current_clip_id"></span>
+                        <span class="clip_author_badge" id="clip_box_author_name"></span>
+                    </div>
+                    <div class="clip_msg_body">
+                        " <span id="clip_box_message"></span> "
+                    </div>
+                    <div class="clip_footer">
+                        <span id="clip_box_hms"></span>
+                        <span class="dot_sep">•</span>
+                        <span id="clip_box_delay"></span>
+                    </div>
+                </div>
+                <button id="gt_button" title="Next Clip">
+                    <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg>
+                </button>
             </div>
         `;
-        }
+        middle_row.appendChild(container);
         
-        document.head.insertAdjacentHTML(
-            "beforeend",
-            `
-            <style>
-                #clip_box { 
-                    display: flex; 
-                    align-items: center; 
-                    justify-content: center; 
-                    gap: 10px; 
-                    padding: 10px; 
-                    width: auto; 
-                    text-align: center; 
-                    border-radius: 12px;
-                    font-size: 14px;
-                    background-color: rgba(255,255,255,0.1);
-                    color: var(--yt-formatted-string-bold-color,inherit);
-                } 
-
-                button { 
-                    background: none;
-                    color: inherit;
-                    border: none;
-                    padding: 0;
-                    font: inherit;
-                    cursor: pointer;
-                    outline: inherit;
-                }
-                #lt_button {
-                    position: absolute;
-                    left: 20px;
-                }
-                #gt_button {
-                    position: absolute;
-                    right: 20px;
-                }
-
-                #current_clip_id {
-                    color: var(--yt-endpoint-color, var(--yt-spec-call-to-action));
-                }
-            </style>
-            `
-        );
-
-    }
-    function jump(time){
-        console.log("Jumping to: ", time);
-        if(!time){
-            return;
+        if (!document.getElementById('ss_styles')) {
+            document.head.insertAdjacentHTML("beforeend", `
+                <style id="ss_styles">
+                    #clip_box_container {
+                        margin: 12px 0;
+                        display: flex;
+                        justify-content: center;
+                        width: 100%;
+                    }
+                    #clip_box { 
+                        display: flex; 
+                        align-items: center; 
+                        gap: 20px; 
+                        padding: 10px 24px; 
+                        width: 100%;
+                        border-radius: 10px;
+                        font-family: "YouTube Sans", Roboto, Arial, sans-serif;
+                        background: rgba(255, 255, 255, 0.04);
+                        backdrop-filter: blur(12px);
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                        color: #fff;
+                        position: relative;
+                    }
+                    #ss_logo_img {
+                        height: 24px;
+                        width: auto;
+                        margin-right: -4px;
+                        filter: drop-shadow(0 0 4px rgba(62, 166, 255, 0.4));
+                    }
+                    #clip_box:hover {
+                        background: rgba(255, 255, 255, 0.07);
+                        border-color: rgba(255, 255, 255, 0.2);
+                        transform: translateY(-1px);
+                    }
+                    .clip_content {
+                        flex: 1;
+                        display: flex;
+                        align-items: center;
+                        justify-content: space-between;
+                        gap: 16px;
+                        min-width: 0;
+                    }
+                    .clip_header {
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                        font-size: 11px;
+                        text-transform: uppercase;
+                        letter-spacing: 0.6px;
+                        opacity: 0.8;
+                        flex-shrink: 0;
+                        border-right: 1px solid rgba(255, 255, 255, 0.1);
+                        padding-right: 16px;
+                    }
+                    #current_clip_id {
+                        color: #3ea6ff;
+                        font-weight: 800;
+                    }
+                    .clip_author_badge {
+                        background: rgba(62, 166, 255, 0.15);
+                        color: #3ea6ff;
+                        padding: 3px 8px;
+                        border-radius: 5px;
+                        font-weight: 600;
+                    }
+                    .clip_msg_body {
+                        font-size: 16px;
+                        font-weight: 500;
+                        color: #fff;
+                        overflow: hidden;
+                        text-overflow: ellipsis;
+                        white-space: nowrap;
+                        text-align: center;
+                        flex: 1;
+                    }
+                    .clip_footer {
+                        display: flex;
+                        align-items: center;
+                        gap: 10px;
+                        font-size: 13px;
+                        opacity: 0.7;
+                        flex-shrink: 0;
+                        border-left: 1px solid rgba(255, 255, 255, 0.1);
+                        padding-left: 16px;
+                    }
+                    .dot_sep { opacity: 0.5; }
+                    #clip_box button { 
+                        background: rgba(255, 255, 255, 0.1);
+                        color: #fff;
+                        border: none;
+                        width: 38px;
+                        height: 38px;
+                        border-radius: 8px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        flex-shrink: 0;
+                    }
+                    #clip_box button:hover {
+                        background: rgba(255, 255, 255, 0.2);
+                        transform: scale(1.05);
+                    }
+                    #clip_box button:active {
+                        transform: scale(0.95);
+                    }
+                    #clip_box button svg {
+                        width: 24px;
+                        height: 24px;
+                        fill: currentColor;
+                    }
+                    
+                    /* Light Mode Overrides */
+                    html:not([dark]) #clip_box {
+                        background: rgba(var(--yt-spec-general-background-a-rgb), 0.05);
+                        color: #0f0f0f;
+                        border-color: rgba(0, 0, 0, 0.1);
+                    }
+                    html:not([dark]) .clip_msg_body { color: #0f0f0f; }
+                    html:not([dark]) .clip_header, html:not([dark]) .clip_footer { border-color: rgba(0, 0, 0, 0.1); }
+                    html:not([dark]) #clip_box button { background: rgba(0, 0, 0, 0.06); color: #0f0f0f; }
+                    html:not([dark]) #clip_box button:hover { background: rgba(0, 0, 0, 0.12); }
+                </style>
+            `);
         }
-        document.querySelector(".html5-video-container").firstChild.currentTime = parseInt(time);
     }
-    function update_box_data(clip){
-        // <span id="current_clip_id"></span> | <span id="clip_box_author_name"></span> - <span id="clip_box_message"></span> | <span id="clip_box_hms"></span> | <span id="clip_box_delay"></span>
-        var current_clip_id = document.getElementById('current_clip_id');
-        var clip_box_author_name = document.getElementById('clip_box_author_name');
-        var clip_box_message = document.getElementById('clip_box_message');
-        var clip_box_hms = document.getElementById('clip_box_hms');
-        var clip_box_delay = document.getElementById('clip_box_delay');
-        if(!current_clip_id){
-            return;
-        }
-        current_clip_id.innerText = clip.id;
-        clip_box_author_name.innerText = clip.author.name;
-        clip_box_message.innerText = clip.message;
-        clip_box_hms.innerText = clip.hms;
+
+    function jump(time) {
+        if (time === undefined || time === null) return;
+        const video = document.querySelector('video');
+        if (video) video.currentTime = parseInt(time);
+    }
+
+    function update_box_data(clip) {
+        const elements = {
+            id: document.getElementById('current_clip_id'),
+            name: document.getElementById('clip_box_author_name'),
+            msg: document.getElementById('clip_box_message'),
+            hms: document.getElementById('clip_box_hms'),
+            delay: document.getElementById('clip_box_delay')
+        };
+        if (!elements.id) return;
         
-        if(clip.delay < 0) {
-            clip_box_delay.innerText = `Delay: ${Math.abs(clip.delay)}s`;   
-        }
-        else{
-            clip_box_delay.innerText = `Ahead: ${clip.delay}s`;   
+        elements.id.innerText = clip.id;
+        elements.name.innerText = clip.author.name;
+        elements.msg.innerText = clip.message;
+        elements.hms.innerText = clip.hms;
+        
+        if (clip.delay < 0) {
+            elements.delay.innerText = `Delay: ${Math.abs(clip.delay)}s`;   
+        } else {
+            elements.delay.innerText = `Ahead: ${clip.delay}s`;   
         }
     }
+
     function get_to_clip(reverse = false) {
-        seconds = get_current_seconds();
-        // find the closest clip in lookuptable
-        var currentClip = null;
-        for(let i=0; i<lookuptable.length; i++){
-            var clip = lookuptable[i];
-            if(reverse){
-                if(clip.end_time < seconds){
-                    if(!currentClip || clip.end_time > currentClip.end_time){
-                        currentClip = clip;
-                    }
+        if (!lookuptable || !lookuptable.length) return;
+        const seconds = get_current_seconds();
+        let targetClip = null;
+
+        for (let i = 0; i < lookuptable.length; i++) {
+            const clip = lookuptable[i];
+            if (reverse) {
+                if (clip.end_time < seconds) {
+                    if (!targetClip || clip.end_time > targetClip.end_time) targetClip = clip;
                 }
-            }
-            else{
-                if(clip.start_time > seconds){
-                    if(!currentClip || clip.start_time < currentClip.start_time){
-                        currentClip = clip;
-                    }
+            } else {
+                if (clip.start_time > seconds) {
+                    if (!targetClip || clip.start_time < targetClip.start_time) targetClip = clip;
                 }
             }   
         }
-        if(!currentClip){
-            console.log("No more clips in this direction");
-            if(reverse){
-                // jump to end
-                currentClip = lookuptable[lookuptable.length - 1];
 
-            }
-            else{
-                // jump to start
-                currentClip = lookuptable[0];
-            }
+        if (!targetClip) {
+            targetClip = reverse ? lookuptable[lookuptable.length - 1] : lookuptable[0];
         }
-        // now get the actual clip data from data
-        for(let i=0; i<data.length; i++){
-            if(data[i].id == currentClip.id){
-                currentClip = data[i];
-                break;
-            }
+
+        const fullClipData = data.find(c => c.id === targetClip.id);
+        if (fullClipData) {
+            jump(fullClipData.clip_time);
+            update_box_data(fullClipData);
         }
-        
-        jump(currentClip.clip_time);
-        update_box_data(currentClip);
-        console.log('Switched to clip:', currentClip.id);
     }
     
-    async function run(){
-        console.log('Streamsnip Running');
-        videoId = null;
-        last_video_id;
-        // get current url
-        let url = window.location.href;
-        if(url.includes("watch")){
-            let urlParts = url.split('/');
-            videoId = urlParts[urlParts.length-1];
-            videoId = videoId.split('?')[1].split('v=')[1];
-            videoId = videoId.split('&')[0];
-        }
-        else if(url.includes("embed")){
-            // https://www.youtube.com/embed/xk7tr39tx1E?start=15202&autoplay=1
-            let urlParts = url.split('/');
-            videoId = urlParts[urlParts.length-1];
-            videoId = videoId.split('?')[0];
-        }
-        else{
-            // not on a watch page
-            last_video_id = null;
-            console.log("Streamsnip: not on a watch page.")
-            return;
-        }
-        console.log('Video ID:', videoId);
-        preview_bar = document.getElementById('sspreviewbar');
-        if (preview_bar){
-            console.log('Removing preview bar');
-            preview_bar.remove();
-        }
-        qurl = 'https://streamsnip.com/extension/clips/' + videoId;
-        response = await fetch(qurl);
-        data = await response.json();
-        if(!data.length){ // WHY JS WHY. WHY CAN"T I JUST DO !data 
-            console.log("No clips found");
-            remove_clip_box();
-            return;
-        }
-        // iterate over data and if any clip.id are repeated then merge them by adding author names and messages
-        for(let i=0; i<data.length; i++){
-            for(let j=i+1; j<data.length; j++){
-                if(data[i].id == data[j].id){
-                    data[i].author.name += `, ${data[j].author.name}`;
-                    data[i].message += ` AND ${data[j].message}`;
-                    data.splice(j, 1);
-                    j--;
-                    console.log("Merged duplicate clip id:", data[i].id);
+    function parseVideoId(url) {
+        try {
+            const urlObj = new URL(url);
+            if (urlObj.hostname.includes('youtube.com')) {
+                // Ensure we are on a watch page and 'v' exists
+                if (urlObj.pathname === '/watch') {
+                    const v = urlObj.searchParams.get('v');
+                    return (v && v.trim()) ? v : null;
                 }
+                // Handle embed
+                if (urlObj.pathname.startsWith('/embed/')) {
+                    const parts = urlObj.pathname.split('/');
+                    return (parts[2] && parts[2].trim()) ? parts[2] : null;
+                }
+            } else if (urlObj.hostname === 'youtu.be') {
+                const v = urlObj.pathname.substring(1);
+                return (v && v.trim()) ? v : null;
             }
+        } catch (e) {
+            // fallback
         }
-        create_clip_box(); // create a box to show the clip message 
-        setInterval(update_duration, 1000, data);
-        progreess_bar = document.querySelectorAll('.ytp-progress-bar');
-        container = document.querySelector('.ytp-progress-bar-container');
-        ul = document.createElement('ul');
-        tooltip_text = document.querySelectorAll(".ytp-tooltip-progress-bar-pill-title");
-        if(tooltip_text.length > 0){
-            tooltip_text = tooltip_text[0];
-        }
-        ul.id = 'sspreviewbar';
-        total_time = parseInt(progreess_bar[0].getAttribute('aria-valuemax'));
-        lookuptable = []; // star_time, end_time, message, id
-        for(let i=0; i<data.length; i++){
-            clip = data[i];
-            start_time = clip.clip_time
-            end_time = clip.clip_time - clip.delay;
-            if(start_time < end_time){
-                start_time, end_time = end_time, start_time;
-            }
-            // int start_time and end_time
-            start_time = parseInt(start_time);
-            end_time = parseInt(end_time);
+        return null;
+    }
 
-            bar = document.createElement('li');
-            bar.classList.add('sspreviewbar');
-            bar.innerHTML = '&nbsp;';
-            bar.style.position = "absolute";
-            bar.style.left = timeToPercentage(start_time, total_time) + '%';
-            bar.style.right = timeToRightPercentage(end_time, total_time) + '%';
-            ul.appendChild(bar);
-            lookuptable.push({'start_time': start_time, 'end_time': end_time, 'message': clip.message, 'id': clip.id}); 
-        }
-        container.appendChild(ul);
-        seekBar = document.querySelector(".ytp-progress-bar-container");
-        if(!seekBar){
+    async function run() {
+        const currentVideoId = parseVideoId(window.location.href);
+        
+        // Ensure no requests are made if not on a video page
+        if (!currentVideoId) {
+            if (last_video_id !== null) {
+                console.log("Streamsnip: Left video page, cleaning up.");
+                remove_clip_box();
+                last_video_id = null;
+            }
             return;
         }
-        mouseOnSeekBar = false;
 
-        seekBar.addEventListener("mouseenter", () => {
-            mouseOnSeekBar = true;
-        });
+        // Prevent redundant fetches for the same video
+        if (currentVideoId === last_video_id) return;
+        
+        // New video detected, remove old state first
+        remove_clip_box();
+        last_video_id = currentVideoId;
 
-        seekBar.addEventListener("mouseleave", () => {
-            mouseOnSeekBar = false;
-        });
-        last_mouse_position = null;
-        seekBar.addEventListener("mousemove", handlehower);   
-        console.log("adding event listeners");
-        var lt = document.getElementById('lt_button');
-        var gt = document.getElementById('gt_button');
-        lt.addEventListener('click', () => {
-            get_to_clip(true);
-        });
-        gt.addEventListener('click', () => {
-            get_to_clip(false);
-        });
-    };
+        console.log('Streamsnip Active for:', currentVideoId);
+        
+        try {
+            const qurl = `https://streamsnip.com/extension/clips/${currentVideoId}`;
+            const response = await fetch(qurl);
+            const rawData = await response.json();
+            
+            if (!rawData || !rawData.length) {
+                console.log("Streamsnip: No clips found.");
+                return;
+            }
+            
+            // Deduplicate and merge
+            const merged = [];
+            rawData.forEach(clip => {
+                const existing = merged.find(c => c.id === clip.id);
+                if (existing) {
+                    existing.author.name += `, ${clip.author.name}`;
+                    existing.message += ` & ${clip.message}`;
+                } else {
+                    merged.push(JSON.parse(JSON.stringify(clip)));
+                }
+            });
+            data = merged;
+
+            // Wait for critical elements to appear in the DOM
+            await waitForElement('.ytp-progress-bar');
+            await waitForElement('#middle-row');
+
+            create_clip_box();
+            
+            // Clear any existing intervals for duration tracking
+            if (window.ssDurationInterval) clearInterval(window.ssDurationInterval);
+            window.ssDurationInterval = setInterval(() => update_duration(data), 1000);
+
+            const progressBar = document.querySelector('.ytp-progress-bar');
+            const progressContainer = document.querySelector('.ytp-progress-bar-container');
+            
+            // Cleanup old bar
+            const oldBar = document.getElementById('sspreviewbar');
+            if (oldBar) oldBar.remove();
+
+            ul = document.createElement('ul');
+            ul.id = 'sspreviewbar';
+            
+            total_time = parseInt(progressBar.getAttribute('aria-valuemax'));
+            lookuptable = [];
+
+            data.forEach(clip => {
+                const t1 = parseInt(clip.clip_time);
+                const t2 = t1 - clip.delay;
+                const start = Math.min(t1, t2);
+                const end = Math.max(t1, t2);
+
+                const bar = document.createElement('li');
+                bar.className = 'sspreviewbar';
+                bar.style.position = "absolute";
+                bar.style.left = `${timeToPercentage(start, total_time)}%`;
+                bar.style.right = `${timeToRightPercentage(end, total_time)}%`;
+                ul.appendChild(bar);
+                
+                lookuptable.push({
+                    start_time: start, 
+                    end_time: end, 
+                    message: clip.message, 
+                    id: clip.id
+                });
+            });
+
+            progressContainer.appendChild(ul);
+            
+            tooltip_text = document.querySelector(".ytp-tooltip-progress-bar-pill-title");
+            seekBar = progressContainer;
+            
+            // Remove old listeners before adding new one
+            seekBar.removeEventListener("mousemove", handlehover);
+            seekBar.addEventListener("mousemove", handlehover);
+
+            document.getElementById('lt_button').onclick = () => get_to_clip(true);
+            document.getElementById('gt_button').onclick = () => get_to_clip(false);
+
+        } catch (err) {
+            console.error('Streamsnip failed to initialize:', err);
+        }
+    }
+
+    // YouTube SPA navigation detection
+    window.addEventListener('yt-navigate-finish', () => {
+        console.log('Streamsnip: Navigation finished.');
+        run();
+    });
+
+    // Fallback polling for unusual transitions
     let lastUrl = location.href;
     setInterval(() => {
-    if (location.href !== lastUrl) {
-        console.log('URL changed to ' + location.href);
-        lastUrl = location.href;
-        run();
-    }
-    }, 500);
+        if (location.href !== lastUrl) {
+            lastUrl = location.href;
+            run();
+        }
+    }, 1000);
 
+    // Initial load
     run();
 })();

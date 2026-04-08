@@ -15,7 +15,8 @@
     display: inline-block;
     height: 100%;
     min-width: 1px;
-    background-color:   aqua;
+    background-color: #3ea6ff;
     position: absolute;
     opacity: 1;
+    border-radius: 1px;
 }
