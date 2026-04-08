@@ -1,12 +1,10 @@
 {
-"update_url": "https://clients2.google.com/service/update2/crx",
-
+  "update_url": "https://clients2.google.com/service/update2/crx",
   "manifest_version": 3,
   "name": "Streamsnip ",
-  "version": "2.1",
+  "version": "3.0",
   "description": "Shows clips from the stream on scrubber.",
-  "permissions": [
-  ],
+  "permissions": [],
   "content_scripts": [
     {
       "matches": [
