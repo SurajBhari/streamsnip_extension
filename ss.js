@@ -61,9 +61,23 @@
         return secs;
     }
 
+    function reset_box_data() {
+        const header = document.querySelector('.clip_header');
+        const footer = document.querySelector('.clip_footer');
+        const msg = document.getElementById('clip_box_message');
+        
+        if (header) header.style.display = 'none';
+        if (footer) footer.style.display = 'none';
+        if (msg) {
+            msg.innerText = "Monitoring clips...";
+            msg.style.opacity = '0.5';
+        }
+    }
+
     function update_duration(data) {
         const seconds = get_current_seconds() + 1; // +1 to account for polling delay
         
+        let found = false;
         for (let i = 0; i < data.length; i++) {
             const clip = data[i];
             const t1 = parseInt(clip.clip_time);
@@ -72,6 +86,7 @@
             const end_time = Math.max(t1, t2);
 
             if (seconds >= start_time && seconds <= end_time) {
+                found = true;
                 const message = clip.message;
                 update_box_data(clip);
                 
@@ -90,8 +105,11 @@
             }
         }
         
-        const clip_message = document.getElementById('clip_message');
-        if (clip_message) clip_message.remove();
+        if (!found) {
+            const clip_message = document.getElementById('clip_message');
+            if (clip_message) clip_message.remove();
+            reset_box_data();
+        }
     }
     
     function handlehover(e) {
@@ -139,14 +157,14 @@
                     <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"></path></svg>
                 </button>
                 <div class="clip_content">
-                    <div class="clip_header">
+                    <div class="clip_header" style="display: none;">
                         <span id="current_clip_id"></span>
                         <span class="clip_author_badge" id="clip_box_author_name"></span>
                     </div>
-                    <div class="clip_msg_body">
-                        " <span id="clip_box_message"></span> "
+                    <div class="clip_msg_body" id="clip_box_message" style="opacity: 0.5;">
+                        Monitoring clips...
                     </div>
-                    <div class="clip_footer">
+                    <div class="clip_footer" style="display: none;">
                         <span id="clip_box_hms"></span>
                         <span class="dot_sep">•</span>
                         <span id="clip_box_delay"></span>
@@ -303,11 +321,31 @@
             hms: document.getElementById('clip_box_hms'),
             delay: document.getElementById('clip_box_delay')
         };
+        const header = document.querySelector('.clip_header');
+        const footer = document.querySelector('.clip_footer');
+        
         if (!elements.id) return;
         
+        if (header) header.style.display = 'flex';
+        if (footer) footer.style.display = 'flex';
+        
         elements.id.innerText = clip.id;
-        elements.name.innerText = clip.author.name;
-        elements.msg.innerText = clip.message;
+
+        let role = "(Regular)";
+        if (clip.author && clip.author.level) {
+            let level = clip.author.level.toLowerCase();
+            if (level === "owner") role = "(Owner)";
+            else if (level === "moderator") role = "(Moderator)";
+            else if (level === "member") role = "(Member)";
+            else if (level === "automated") role = "(Automated)";
+            else if (level === "regular" || level === "everyone") role = "(Regular)";
+        }
+        
+        elements.name.innerText = `${clip.author.name} ${role}`;
+
+        elements.msg.innerText = `"${clip.message}"`;
+        elements.msg.style.opacity = '1';
+
         elements.hms.innerText = clip.hms;
         
         if (clip.delay < 0) {
