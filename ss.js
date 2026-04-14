@@ -1,4 +1,4 @@
-(function() {
+(function () {
     'use strict';
     var videoId;
     var last_video_id;
@@ -48,7 +48,7 @@
     function get_current_seconds() {
         const timeDisplay = document.querySelector(".ytp-time-current");
         if (!timeDisplay) return 0;
-        
+
         const parts = timeDisplay.textContent.split(':').map(Number);
         let secs = 0;
         if (parts.length === 1) {
@@ -65,7 +65,7 @@
         const header = document.querySelector('.clip_header');
         const footer = document.querySelector('.clip_footer');
         const msg = document.getElementById('clip_box_message');
-        
+
         if (header) header.style.display = 'none';
         if (footer) footer.style.display = 'none';
         if (msg) {
@@ -76,7 +76,7 @@
 
     function update_duration(data) {
         const seconds = get_current_seconds() + 1; // +1 to account for polling delay
-        
+
         let found = false;
         for (let i = 0; i < data.length; i++) {
             const clip = data[i];
@@ -84,12 +84,21 @@
             const t2 = parseInt(clip.clip_time) - clip.delay;
             const start_time = Math.min(t1, t2);
             const end_time = Math.max(t1, t2);
+            if (start_time == end_time) {
+                end_time = end_time + -1 * clip.delay;
+            }
+            if (start_time > end_time) {
+                // flip them around
+                temp_ = start_time;
+                start_time = end_time;
+                end_time = temp_;
+            }
 
             if (seconds >= start_time && seconds <= end_time) {
                 found = true;
                 const message = clip.message;
                 update_box_data(clip);
-                
+
                 const timeDisplay = document.querySelector(".ytp-time-display");
                 if (timeDisplay && timeDisplay.innerHTML.includes(message)) return;
 
@@ -104,26 +113,26 @@
                 return;
             }
         }
-        
+
         if (!found) {
             const clip_message = document.getElementById('clip_message');
             if (clip_message) clip_message.remove();
             reset_box_data();
         }
     }
-    
+
     function handlehover(e) {
         if (!seekBar || !total_time || !lookuptable) return;
-        
+
         const rect = seekBar.getBoundingClientRect();
         const hoveredX = e.clientX - rect.x;
         const timeInSeconds = hoveredX / rect.width;
-        
+
         if (last_mouse_position === e.clientX) return;
         last_mouse_position = e.clientX;
-        
+
         const hoverTime = parseInt(timeInSeconds * total_time);
-        
+
         for (let i = 0; i < lookuptable.length; i++) {
             if (hoverTime >= lookuptable[i].start_time && hoverTime <= lookuptable[i].end_time) {
                 const message = lookuptable[i].message;
@@ -137,9 +146,39 @@
         }
     }
 
-    function remove_clip_box() {
+    function cleanup() {
+        console.log("Streamsnip: Cleaning up UI.");
+        
+        // Remove clip box
         const clip_box = document.getElementById('clip_box_container');
         if (clip_box) clip_box.remove();
+
+        // Remove preview bar markers
+        const oldBar = document.getElementById('sspreviewbar');
+        if (oldBar) oldBar.remove();
+
+        // Remove duration message
+        const clip_message = document.getElementById('clip_message');
+        if (clip_message) clip_message.remove();
+
+        // Clear intervals
+        if (window.ssDurationInterval) {
+            clearInterval(window.ssDurationInterval);
+            window.ssDurationInterval = null;
+        }
+
+        // Remove event listeners
+        if (seekBar) {
+            seekBar.removeEventListener("mousemove", handlehover);
+        }
+
+        // Reset state
+        data = null;
+        lookuptable = null;
+    }
+
+    function remove_clip_box() {
+        cleanup();
     }
 
     function create_clip_box() {
@@ -176,7 +215,7 @@
             </div>
         `;
         middle_row.appendChild(container);
-        
+
         if (!document.getElementById('ss_styles')) {
             document.head.insertAdjacentHTML("beforeend", `
                 <style id="ss_styles">
@@ -323,12 +362,12 @@
         };
         const header = document.querySelector('.clip_header');
         const footer = document.querySelector('.clip_footer');
-        
+
         if (!elements.id) return;
-        
+
         if (header) header.style.display = 'flex';
         if (footer) footer.style.display = 'flex';
-        
+
         elements.id.innerText = clip.id;
 
         let role = "(Regular)";
@@ -340,18 +379,18 @@
             else if (level === "automated") role = "(Automated)";
             else if (level === "regular" || level === "everyone") role = "(Regular)";
         }
-        
+
         elements.name.innerText = `${clip.author.name} ${role}`;
 
         elements.msg.innerText = `"${clip.message}"`;
         elements.msg.style.opacity = '1';
 
         elements.hms.innerText = clip.hms;
-        
+
         if (clip.delay < 0) {
-            elements.delay.innerText = `Delay: ${Math.abs(clip.delay)}s`;   
+            elements.delay.innerText = `Delay: ${Math.abs(clip.delay)}s`;
         } else {
-            elements.delay.innerText = `Ahead: ${clip.delay}s`;   
+            elements.delay.innerText = `Ahead: ${clip.delay}s`;
         }
     }
 
@@ -370,7 +409,7 @@
                 if (clip.start_time > seconds) {
                     if (!targetClip || clip.start_time < targetClip.start_time) targetClip = clip;
                 }
-            }   
+            }
         }
 
         if (!targetClip) {
@@ -383,7 +422,7 @@
             update_box_data(fullClipData);
         }
     }
-    
+
     function parseVideoId(url) {
         try {
             const urlObj = new URL(url);
@@ -410,12 +449,12 @@
 
     async function run() {
         const currentVideoId = parseVideoId(window.location.href);
-        
+
         // Ensure no requests are made if not on a video page
         if (!currentVideoId) {
             if (last_video_id !== null) {
                 console.log("Streamsnip: Left video page, cleaning up.");
-                remove_clip_box();
+                cleanup();
                 last_video_id = null;
             }
             return;
@@ -423,23 +462,23 @@
 
         // Prevent redundant fetches for the same video
         if (currentVideoId === last_video_id) return;
-        
+
         // New video detected, remove old state first
-        remove_clip_box();
+        cleanup();
         last_video_id = currentVideoId;
 
         console.log('Streamsnip Active for:', currentVideoId);
-        
+
         try {
             const qurl = `https://streamsnip.com/extension/clips/${currentVideoId}`;
             const response = await fetch(qurl);
             const rawData = await response.json();
-            
+
             if (!rawData || !rawData.length) {
                 console.log("Streamsnip: No clips found.");
                 return;
             }
-            
+
             // Deduplicate and merge
             const merged = [];
             rawData.forEach(clip => {
@@ -458,21 +497,21 @@
             await waitForElement('#middle-row');
 
             create_clip_box();
-            
+
             // Clear any existing intervals for duration tracking
             if (window.ssDurationInterval) clearInterval(window.ssDurationInterval);
             window.ssDurationInterval = setInterval(() => update_duration(data), 1000);
 
             const progressBar = document.querySelector('.ytp-progress-bar');
             const progressContainer = document.querySelector('.ytp-progress-bar-container');
-            
+
             // Cleanup old bar
             const oldBar = document.getElementById('sspreviewbar');
             if (oldBar) oldBar.remove();
 
             ul = document.createElement('ul');
             ul.id = 'sspreviewbar';
-            
+
             total_time = parseInt(progressBar.getAttribute('aria-valuemax'));
             lookuptable = [];
 
@@ -488,20 +527,20 @@
                 bar.style.left = `${timeToPercentage(start, total_time)}%`;
                 bar.style.right = `${timeToRightPercentage(end, total_time)}%`;
                 ul.appendChild(bar);
-                
+
                 lookuptable.push({
-                    start_time: start, 
-                    end_time: end, 
-                    message: clip.message, 
+                    start_time: start,
+                    end_time: end,
+                    message: clip.message,
                     id: clip.id
                 });
             });
 
             progressContainer.appendChild(ul);
-            
+
             tooltip_text = document.querySelector(".ytp-tooltip-progress-bar-pill-title");
             seekBar = progressContainer;
-            
+
             // Remove old listeners before adding new one
             seekBar.removeEventListener("mousemove", handlehover);
             seekBar.addEventListener("mousemove", handlehover);
