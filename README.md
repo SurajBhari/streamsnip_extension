@@ -1,5 +1,9 @@
 # StreamSnip Extension
 
+![Chrome Extension](https://img.shields.io/badge/Chrome_Extension-MV3-4285F4?style=flat&logo=googlechrome&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black)
+![YouTube](https://img.shields.io/badge/YouTube-FF0000?style=flat&logo=youtube&logoColor=white)
+
 A lightweight Chrome (Manifest V3) extension that overlays **clip markers on the YouTube video scrubber**, so you can instantly see and jump to every moment that was clipped with [StreamSnip](https://streamsnip.com) during a live stream or its VOD.
 
 ![Clip markers on the YouTube timeline](https://github.com/SurajBhari/streamsnip_extension/assets/45149585/87a5cb1c-caaf-4bb5-87a0-b63f9175c84f)
