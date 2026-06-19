@@ -20,6 +20,8 @@
     var span;
     var current_time;
     var seconds;
+    var panelState = { open: false, search: '', role: 'all' };
+    var currentClip = null;
 
     const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -46,19 +48,14 @@
     }
 
     function get_current_seconds() {
-        const timeDisplay = document.querySelector(".ytp-time-current");
-        if (!timeDisplay) return 0;
-
-        const parts = timeDisplay.textContent.split(':').map(Number);
-        let secs = 0;
-        if (parts.length === 1) {
-            secs = parts[0];
-        } else if (parts.length === 2) {
-            secs = parts[0] * 60 + parts[1];
-        } else if (parts.length === 3) {
-            secs = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        const progressBar = document.querySelector('.ytp-progress-bar');
+        if (progressBar) {
+            const t = parseInt(progressBar.getAttribute('aria-valuenow'));
+            if (!isNaN(t)) return t;
         }
-        return secs;
+        const video = document.querySelector('video');
+        if (video) return Math.floor(video.currentTime);
+        return 0;
     }
 
     function reset_box_data() {
@@ -72,6 +69,12 @@
             msg.innerText = "Monitoring clips...";
             msg.style.opacity = '0.5';
         }
+
+        const shareBtn = document.getElementById('ss_share_btn');
+        if (shareBtn) shareBtn.style.display = 'none';
+        currentClip = null;
+
+        update_panel_current();
     }
 
     function update_duration(data) {
@@ -82,16 +85,11 @@
             const clip = data[i];
             const t1 = parseInt(clip.clip_time);
             const t2 = parseInt(clip.clip_time) - clip.delay;
-            const start_time = Math.min(t1, t2);
-            const end_time = Math.max(t1, t2);
-            if (start_time == end_time) {
-                end_time = end_time + -1 * clip.delay;
-            }
-            if (start_time > end_time) {
-                // flip them around
-                temp_ = start_time;
-                start_time = end_time;
-                end_time = temp_;
+            let start_time = Math.min(t1, t2);
+            let end_time = Math.max(t1, t2);
+            if (start_time === end_time) {
+                start_time = t1 - 2;
+                end_time = t1 + 2;
             }
 
             if (seconds >= start_time && seconds <= end_time) {
@@ -166,6 +164,10 @@
             clearInterval(window.ssDurationInterval);
             window.ssDurationInterval = null;
         }
+        if (window.ssMarkerInterval) {
+            clearInterval(window.ssMarkerInterval);
+            window.ssMarkerInterval = null;
+        }
 
         // Remove event listeners
         if (seekBar) {
@@ -175,6 +177,10 @@
         // Reset state
         data = null;
         lookuptable = null;
+        panelState.open = false;
+        panelState.search = '';
+        panelState.role = 'all';
+        currentClip = null;
     }
 
     function remove_clip_box() {
@@ -212,6 +218,26 @@
                 <button id="gt_button" title="Next Clip">
                     <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"></path></svg>
                 </button>
+                <button id="ss_share_btn" title="Copy clip link" style="display:none;">
+                    <svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                </button>
+                <button id="ss_toggle_btn" title="Browse all clips" style="display:none;">0 clips ▾</button>
+            </div>
+            <div id="ss_panel_wrap">
+                <div id="ss_panel_inner">
+                    <div id="ss_panel">
+                        <div id="ss_panel_controls">
+                            <input id="ss_search" type="text" placeholder="Search clips..." autocomplete="off" spellcheck="false">
+                            <div id="ss_role_filters">
+                                <button class="ss_role_btn active" data-role="all">All</button>
+                                <button class="ss_role_btn" data-role="moderator">Mod</button>
+                                <button class="ss_role_btn" data-role="owner">Owner</button>
+                                <button class="ss_role_btn" data-role="member">Member</button>
+                            </div>
+                        </div>
+                        <div id="ss_clip_list"></div>
+                    </div>
+                </div>
             </div>
         `;
         middle_row.appendChild(container);
@@ -222,15 +248,16 @@
                     #clip_box_container {
                         margin: 12px 0;
                         display: flex;
-                        justify-content: center;
+                        flex-direction: column;
                         width: 100%;
                     }
-                    #clip_box { 
-                        display: flex; 
-                        align-items: center; 
-                        gap: 20px; 
-                        padding: 10px 24px; 
+                    #clip_box {
+                        display: flex;
+                        align-items: center;
+                        gap: 20px;
+                        padding: 10px 24px;
                         width: 100%;
+                        box-sizing: border-box;
                         border-radius: 10px;
                         font-family: "YouTube Sans", Roboto, Arial, sans-serif;
                         background: rgba(255, 255, 255, 0.04);
@@ -304,7 +331,7 @@
                         padding-left: 16px;
                     }
                     .dot_sep { opacity: 0.5; }
-                    #clip_box button { 
+                    #clip_box button:not(#ss_toggle_btn):not(#ss_share_btn) {
                         background: rgba(255, 255, 255, 0.1);
                         color: #fff;
                         border: none;
@@ -318,14 +345,14 @@
                         transition: all 0.2s ease;
                         flex-shrink: 0;
                     }
-                    #clip_box button:hover {
+                    #clip_box button:not(#ss_toggle_btn):not(#ss_share_btn):hover {
                         background: rgba(255, 255, 255, 0.2);
                         transform: scale(1.05);
                     }
-                    #clip_box button:active {
+                    #clip_box button:not(#ss_toggle_btn):not(#ss_share_btn):active {
                         transform: scale(0.95);
                     }
-                    #clip_box button svg {
+                    #clip_box button:not(#ss_toggle_btn):not(#ss_share_btn) svg {
                         width: 24px;
                         height: 24px;
                         fill: currentColor;
@@ -339,8 +366,8 @@
                     }
                     html:not([dark]) .clip_msg_body { color: #0f0f0f; }
                     html:not([dark]) .clip_header, html:not([dark]) .clip_footer { border-color: rgba(0, 0, 0, 0.1); }
-                    html:not([dark]) #clip_box button { background: rgba(0, 0, 0, 0.06); color: #0f0f0f; }
-                    html:not([dark]) #clip_box button:hover { background: rgba(0, 0, 0, 0.12); }
+                    html:not([dark]) #clip_box button:not(#ss_toggle_btn):not(#ss_share_btn) { background: rgba(0, 0, 0, 0.06); color: #0f0f0f; }
+                    html:not([dark]) #clip_box button:not(#ss_toggle_btn):not(#ss_share_btn):hover { background: rgba(0, 0, 0, 0.12); }
                 </style>
             `);
         }
@@ -350,6 +377,15 @@
         if (time === undefined || time === null) return;
         const video = document.querySelector('video');
         if (video) video.currentTime = parseInt(time);
+    }
+
+    function jump_to_clip(clip) {
+        const t1 = parseInt(clip.clip_time);
+        const t2 = t1 - clip.delay;
+        const start_time = Math.min(t1, t2);
+        jump(start_time + 1);
+        update_box_data(clip);
+        requestAnimationFrame(() => { if (data) update_duration(data); });
     }
 
     function update_box_data(clip) {
@@ -392,6 +428,179 @@
         } else {
             elements.delay.innerText = `Ahead: ${clip.delay}s`;
         }
+
+        currentClip = clip;
+        const shareBtn = document.getElementById('ss_share_btn');
+        if (shareBtn) shareBtn.style.display = 'flex';
+
+        update_panel_current();
+    }
+
+    // Move the "current" highlight to the active clip's row without rebuilding
+    // the list or scrolling. Rebuilding/scrolling on every 1s update made the
+    // panel snap to the current clip, so the user could never scroll up to browse.
+    function update_panel_current() {
+        if (!panelState.open) return;
+        const list = document.getElementById('ss_clip_list');
+        if (!list) return;
+        const id = currentClip ? String(currentClip.id) : null;
+        const prev = list.querySelector('.ss_row.current');
+        if (prev && prev.dataset.id !== id) prev.classList.remove('current');
+        if (id) {
+            const next = list.querySelector(`.ss_row[data-id="${CSS.escape(id)}"]`);
+            if (next) next.classList.add('current');
+        }
+    }
+
+    function refresh_markers() {
+        const progressBar = document.querySelector('.ytp-progress-bar');
+        if (!progressBar || !lookuptable || !ul) return;
+
+        const newTotalTime = parseInt(progressBar.getAttribute('aria-valuemax'));
+        if (isNaN(newTotalTime) || newTotalTime <= 0 || newTotalTime === total_time) return;
+
+        total_time = newTotalTime;
+        const bars = ul.querySelectorAll('li.sspreviewbar');
+        bars.forEach((bar, i) => {
+            if (!lookuptable[i]) return;
+            bar.style.left = `${timeToPercentage(lookuptable[i].start_time, total_time)}%`;
+            bar.style.right = `${timeToRightPercentage(lookuptable[i].end_time, total_time)}%`;
+        });
+    }
+
+    function esc(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    async function share_clip(clip) {
+        if (!clip || !last_video_id) return false;
+        const time = parseInt(clip.clip_time);
+        const url = `https://youtu.be/${last_video_id}?t=${time}`;
+        try {
+            await navigator.clipboard.writeText(`"${clip.message}" - ${url}`);
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
+    function render_panel() {
+        const list = document.getElementById('ss_clip_list');
+        if (!list || !data) return;
+
+        const query = panelState.search.toLowerCase().trim();
+        const role = panelState.role;
+
+        const filtered = data.filter(clip => {
+            if (query) {
+                const inMsg = clip.message.toLowerCase().includes(query);
+                const inAuthor = clip.author && clip.author.name && clip.author.name.toLowerCase().includes(query);
+                if (!inMsg && !inAuthor) return false;
+            }
+            if (role !== 'all') {
+                const level = (clip.author && clip.author.level || 'regular').toLowerCase();
+                if (role !== level) return false;
+            }
+            return true;
+        });
+
+        if (!filtered.length) {
+            list.innerHTML = '<div id="ss_no_results">No clips match</div>';
+            return;
+        }
+
+        const linkSVG = '<svg viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>';
+
+        list.innerHTML = filtered.map(clip => {
+            const level = (clip.author && clip.author.level || 'regular').toLowerCase();
+            const roleLabel = level === 'moderator' ? 'Mod' : level === 'owner' ? 'Owner' : level === 'member' ? 'Mbr' : level === 'automated' ? 'Bot' : 'Reg';
+            const isCurrent = currentClip && String(clip.id) === String(currentClip.id);
+            return `<div class="ss_row${isCurrent ? ' current' : ''}" data-id="${esc(clip.id)}">` +
+                `<span class="ss_row_id">#${esc(clip.id)}</span>` +
+                `<span class="ss_row_time">${esc(clip.hms)}</span>` +
+                `<span class="ss_row_msg">&ldquo;${esc(clip.message)}&rdquo;</span>` +
+                `<span class="ss_row_role">${esc(roleLabel)}</span>` +
+                `<button class="ss_row_share" title="Copy link">${linkSVG}</button>` +
+            `</div>`;
+        }).join('');
+
+        Array.from(list.children).forEach((row, i) => {
+            const clip = filtered[i];
+            if (!clip) return;
+            row.addEventListener('click', () => {
+                jump_to_clip(clip);
+            });
+            const shareBtn = row.querySelector('.ss_row_share');
+            if (shareBtn) {
+                shareBtn.addEventListener('click', async e => {
+                    e.stopPropagation();
+                    const ok = await share_clip(clip);
+                    if (ok) {
+                        shareBtn.classList.add('ss-copied');
+                        setTimeout(() => shareBtn.classList.remove('ss-copied'), 1400);
+                    }
+                });
+            }
+        });
+    }
+
+    function toggle_panel() {
+        const wrap = document.getElementById('ss_panel_wrap');
+        const container = document.getElementById('clip_box_container');
+        const btn = document.getElementById('ss_toggle_btn');
+        if (!wrap) return;
+
+        panelState.open = !panelState.open;
+        wrap.classList.toggle('open', panelState.open);
+        if (container) container.classList.toggle('ss-open', panelState.open);
+        if (btn) btn.textContent = `${data ? data.length : 0} clips ${panelState.open ? '▴' : '▾'}`;
+
+        if (panelState.open) {
+            render_panel();
+            requestAnimationFrame(() => {
+                const cur = document.querySelector('.ss_row.current');
+                if (cur) cur.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+            });
+        }
+    }
+
+    function setup_panel_listeners() {
+        const search = document.getElementById('ss_search');
+        if (search) {
+            search.addEventListener('input', e => {
+                panelState.search = e.target.value;
+                render_panel();
+            });
+        }
+
+        document.querySelectorAll('.ss_role_btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.ss_role_btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                panelState.role = btn.dataset.role;
+                render_panel();
+            });
+        });
+
+        const toggleBtn = document.getElementById('ss_toggle_btn');
+        if (toggleBtn) toggleBtn.addEventListener('click', toggle_panel);
+
+        const shareBtn = document.getElementById('ss_share_btn');
+        if (shareBtn) {
+            shareBtn.addEventListener('click', async () => {
+                if (!currentClip) return;
+                const ok = await share_clip(currentClip);
+                if (ok) {
+                    shareBtn.classList.add('ss-copied');
+                    setTimeout(() => shareBtn.classList.remove('ss-copied'), 1400);
+                }
+            });
+        }
     }
 
     function get_to_clip(reverse = false) {
@@ -418,8 +627,7 @@
 
         const fullClipData = data.find(c => c.id === targetClip.id);
         if (fullClipData) {
-            jump(fullClipData.clip_time);
-            update_box_data(fullClipData);
+            jump_to_clip(fullClipData);
         }
     }
 
@@ -497,6 +705,13 @@
             await waitForElement('#middle-row');
 
             create_clip_box();
+            setup_panel_listeners();
+
+            const toggleBtn = document.getElementById('ss_toggle_btn');
+            if (toggleBtn) {
+                toggleBtn.style.display = 'flex';
+                toggleBtn.textContent = `${data.length} clips ▾`;
+            }
 
             // Clear any existing intervals for duration tracking
             if (window.ssDurationInterval) clearInterval(window.ssDurationInterval);
@@ -537,6 +752,9 @@
             });
 
             progressContainer.appendChild(ul);
+
+            if (window.ssMarkerInterval) clearInterval(window.ssMarkerInterval);
+            window.ssMarkerInterval = setInterval(refresh_markers, 5 * 60 * 1000);
 
             tooltip_text = document.querySelector(".ytp-tooltip-progress-bar-pill-title");
             seekBar = progressContainer;

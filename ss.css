@@ -20,3 +20,377 @@
     opacity: 1;
     border-radius: 1px;
 }
+
+/* ---- Share & Toggle buttons ---- */
+
+#ss_share_btn {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.65);
+    border: none;
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#ss_share_btn svg {
+    width: 15px;
+    height: 15px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+#ss_share_btn:hover {
+    background: rgba(255, 255, 255, 0.14);
+    color: #fff;
+    transform: scale(1.05);
+}
+
+#ss_share_btn:active { transform: scale(0.93); }
+
+#ss_share_btn.ss-copied {
+    background: rgba(52, 211, 153, 0.15);
+    color: #34d399;
+}
+
+#ss_toggle_btn {
+    background: rgba(62, 166, 255, 0.1);
+    color: #3ea6ff;
+    border: 1px solid rgba(62, 166, 255, 0.2);
+    height: 34px;
+    padding: 0 13px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    font-weight: 600;
+    font-family: "YouTube Sans", Roboto, Arial, sans-serif;
+    cursor: pointer;
+    flex-shrink: 0;
+    white-space: nowrap;
+    user-select: none;
+    transition: background 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#ss_toggle_btn:hover {
+    background: rgba(62, 166, 255, 0.18);
+    border-color: rgba(62, 166, 255, 0.38);
+    transform: scale(1.03);
+}
+
+#ss_toggle_btn:active { transform: scale(0.95); }
+
+/* Connected card: clip_box loses bottom radius when panel is open */
+#clip_box_container.ss-open #clip_box {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+}
+
+/* ---- Panel: CSS Grid row animation (smoothest native height tween) ---- */
+
+#ss_panel_wrap {
+    display: grid;
+    grid-template-rows: 0fr;
+    transition: grid-template-rows 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#ss_panel_wrap.open {
+    grid-template-rows: 1fr;
+}
+
+#ss_panel_inner {
+    overflow: hidden;
+}
+
+#ss_panel {
+    background: rgba(255, 255, 255, 0.025);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: none;
+    border-radius: 0 0 10px 10px;
+    padding: 12px 16px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ---- Panel controls: search + role pills ---- */
+
+#ss_panel_controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+#ss_search {
+    flex: 1;
+    min-width: 0;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 7px;
+    padding: 6px 12px;
+    color: #fff;
+    font-size: 12px;
+    font-family: "YouTube Sans", Roboto, Arial, sans-serif;
+    outline: none;
+    transition: border-color 0.18s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.18s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#ss_search::placeholder { color: rgba(255, 255, 255, 0.28); }
+
+#ss_search:focus {
+    border-color: rgba(62, 166, 255, 0.45);
+    background: rgba(255, 255, 255, 0.1);
+}
+
+#ss_role_filters {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.ss_role_btn {
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 20px;
+    padding: 4px 11px;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 11px;
+    font-family: "YouTube Sans", Roboto, Arial, sans-serif;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    transition: background 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                border-color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                color 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ss_role_btn:hover {
+    background: rgba(255, 255, 255, 0.13);
+    color: #fff;
+    transform: scale(1.04);
+}
+
+.ss_role_btn:active { transform: scale(0.95); }
+
+.ss_role_btn.active {
+    background: rgba(62, 166, 255, 0.16);
+    border-color: rgba(62, 166, 255, 0.32);
+    color: #3ea6ff;
+}
+
+/* ---- Clip list ---- */
+
+#ss_clip_list {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    max-height: 210px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+#ss_clip_list::-webkit-scrollbar { width: 4px; }
+#ss_clip_list::-webkit-scrollbar-track { background: transparent; }
+#ss_clip_list::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 2px;
+}
+
+.ss_row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: background 0.13s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ss_row:hover { background: rgba(255, 255, 255, 0.06); }
+.ss_row:active { background: rgba(255, 255, 255, 0.1); }
+
+.ss_row.current {
+    background: rgba(62, 166, 255, 0.09);
+    border-left-color: #3ea6ff;
+}
+
+.ss_row_id {
+    color: #3ea6ff;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 30px;
+    flex-shrink: 0;
+    font-family: "YouTube Sans", Roboto, Arial, sans-serif;
+}
+
+.ss_row_time {
+    color: rgba(255, 255, 255, 0.45);
+    font-size: 11px;
+    min-width: 40px;
+    flex-shrink: 0;
+    font-variant-numeric: tabular-nums;
+    font-family: Roboto, Arial, sans-serif;
+}
+
+.ss_row_msg {
+    flex: 1;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-family: "YouTube Sans", Roboto, Arial, sans-serif;
+}
+
+.ss_row.current .ss_row_msg {
+    color: #fff;
+    font-weight: 500;
+}
+
+.ss_row_role {
+    font-size: 10px;
+    color: rgba(255, 255, 255, 0.3);
+    flex-shrink: 0;
+    min-width: 28px;
+    text-align: right;
+    font-family: Roboto, Arial, sans-serif;
+}
+
+.ss_row_share {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0);
+    cursor: pointer;
+    padding: 2px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    transition: color 0.13s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.13s cubic-bezier(0.4, 0, 0.2, 1),
+                transform 0.13s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ss_row:hover .ss_row_share { color: rgba(255, 255, 255, 0.4); }
+
+.ss_row_share:hover {
+    color: #3ea6ff !important;
+    background: rgba(62, 166, 255, 0.12);
+    transform: scale(1.12);
+}
+
+.ss_row_share:active { transform: scale(0.9); }
+.ss_row_share.ss-copied { color: #34d399 !important; }
+
+.ss_row_share svg {
+    width: 13px;
+    height: 13px;
+    stroke: currentColor;
+    fill: none;
+    stroke-width: 2;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    pointer-events: none;
+}
+
+#ss_no_results {
+    text-align: center;
+    padding: 14px 8px;
+    color: rgba(255, 255, 255, 0.28);
+    font-size: 12px;
+    font-family: "YouTube Sans", Roboto, Arial, sans-serif;
+}
+
+/* ---- Light mode overrides ---- */
+
+html:not([dark]) #ss_toggle_btn {
+    color: #065fd4;
+    background: rgba(10, 100, 200, 0.07);
+    border-color: rgba(10, 100, 200, 0.18);
+}
+
+html:not([dark]) #ss_toggle_btn:hover {
+    background: rgba(10, 100, 200, 0.13);
+    border-color: rgba(10, 100, 200, 0.32);
+}
+
+html:not([dark]) #ss_share_btn {
+    background: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.5);
+}
+
+html:not([dark]) #ss_share_btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    color: #0f0f0f;
+}
+
+html:not([dark]) #ss_panel {
+    background: rgba(0, 0, 0, 0.02);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+html:not([dark]) #ss_search {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: #0f0f0f;
+}
+
+html:not([dark]) #ss_search::placeholder { color: rgba(0, 0, 0, 0.3); }
+
+html:not([dark]) #ss_search:focus {
+    border-color: rgba(10, 100, 200, 0.4);
+    background: rgba(0, 0, 0, 0.06);
+}
+
+html:not([dark]) .ss_role_btn {
+    background: rgba(0, 0, 0, 0.04);
+    border-color: rgba(0, 0, 0, 0.1);
+    color: rgba(0, 0, 0, 0.55);
+}
+
+html:not([dark]) .ss_role_btn:hover {
+    background: rgba(0, 0, 0, 0.08);
+    color: #0f0f0f;
+}
+
+html:not([dark]) .ss_role_btn.active {
+    background: rgba(10, 100, 200, 0.1);
+    border-color: rgba(10, 100, 200, 0.28);
+    color: #065fd4;
+}
+
+html:not([dark]) .ss_row:hover { background: rgba(0, 0, 0, 0.04); }
+
+html:not([dark]) .ss_row.current {
+    background: rgba(10, 100, 200, 0.07);
+    border-left-color: #065fd4;
+}
+
+html:not([dark]) .ss_row_id { color: #065fd4; }
+html:not([dark]) .ss_row_time { color: rgba(0, 0, 0, 0.4); }
+html:not([dark]) .ss_row_msg { color: rgba(0, 0, 0, 0.78); }
+html:not([dark]) .ss_row.current .ss_row_msg { color: #0f0f0f; }
+html:not([dark]) .ss_row_role { color: rgba(0, 0, 0, 0.3); }
+html:not([dark]) #ss_clip_list { scrollbar-color: rgba(0, 0, 0, 0.12) transparent; }
+html:not([dark]) #ss_no_results { color: rgba(0, 0, 0, 0.28); }
